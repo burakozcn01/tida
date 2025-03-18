@@ -1,34 +1,34 @@
-# TIDA - Production Docker Kurulum Rehberi
+# TIDA - Production Docker Setup Guide
 
-Bu rehber, TIDA projesinin Docker kullanarak production ortamında nasıl kurulacağını açıklar.
+This guide explains how to deploy the TIDA project in a production environment using Docker.
 
-## Ön Gereksinimler
+## Prerequisites
 
-- Docker ve Docker Compose kurulu olmalı
-- Git kurulu olmalı
-- Sunucu veya VPS (min. 2GB RAM, 2 CPU)
+- Docker and Docker Compose installed
+- Git installed
+- Server or VPS (min. 2GB RAM, 2 CPU cores)
 
-## Kurulum Adımları
+## Installation Steps
 
-1. **Proje dosyalarını düzenleyin**
+1. **Prepare Project Files**
 
-   Aşağıdaki dosyaları projenin ilgili dizinlerine yerleştirin:
+   Place the following files in the respective directories of your project:
    
-   - `docker-compose.yml` → Ana dizine
-   - `tida-backend/Dockerfile` → Backend klasörüne
-   - `tida-backend/entrypoint.sh` → Backend klasörüne
-   - `tida-backend/requirements.txt` → Backend klasörüne (veya mevcut dosyayı güncelleyin)
-   - `tida-frontend/Dockerfile` → Frontend klasörüne
-   - `nginx/conf.d/default.conf` → nginx/conf.d klasörüne (klasörü oluşturun)
-   - `.env` → Ana dizine
+   - `docker-compose.yml` → Root directory
+   - `tida-backend/Dockerfile` → Backend folder
+   - `tida-backend/entrypoint.sh` → Backend folder
+   - `tida-backend/requirements.txt` → Backend folder (or update existing file)
+   - `tida-frontend/Dockerfile` → Frontend folder
+   - `nginx/conf.d/default.conf` → nginx/conf.d folder (create this folder if needed)
+   - `.env` → Root directory
 
-2. **Django settings.py dosyasını güncelleyin**
+2. **Update Django settings.py**
 
-   `tida-backend/tida_backend/settings.py` dosyasını, verilen güncellemelerle düzenleyin.
+   Modify the `tida-backend/tida_backend/settings.py` file with the provided updates.
 
-3. **Frontend için nginx yapılandırması ekleyin**
+3. **Add nginx Configuration for Frontend**
 
-   Frontend Dockerfile'ının çalışması için `/tida-frontend/nginx.conf` dosyasını oluşturun:
+   Create `/tida-frontend/nginx.conf` file to ensure the Frontend Dockerfile works correctly:
 
    ```nginx
    server {
@@ -43,100 +43,123 @@ Bu rehber, TIDA projesinin Docker kullanarak production ortamında nasıl kurula
    }
    ```
 
-4. **Klasör yapısını oluşturun**
+4. **Create Directory Structure**
 
    ```bash
    mkdir -p nginx/conf.d nginx/ssl
    ```
 
-5. **Dosya izinlerini ayarlayın**
+5. **Set File Permissions**
 
    ```bash
    chmod +x tida-backend/entrypoint.sh
    ```
 
-6. **Docker Compose ile başlatın**
+6. **Launch with Docker Compose**
 
    ```bash
    docker-compose up -d
    ```
 
-7. **Superuser oluşturun (İlk kez)**
+7. **Create Superuser (First time only)**
 
    ```bash
    docker-compose exec backend python manage.py createsuperuser --noinput
    ```
 
-## Production Ortamı Güvenlik Ayarları
+## Production Environment Security Settings
 
-1. **SSL/TLS Yapılandırması**
+1. **SSL/TLS Configuration**
 
-   Let's Encrypt ile SSL sertifikası alın ve nginx/ssl dizinine yerleştirin:
+   Obtain an SSL certificate using Let's Encrypt and place it in the nginx/ssl directory:
 
    ```bash
-   # Certbot kurulumu (Ubuntu/Debian)
+   # Install Certbot (Ubuntu/Debian)
    apt-get update
    apt-get install certbot python3-certbot-nginx
    
-   # Sertifika edinme
+   # Obtain certificate
    certbot certonly --standalone -d tida.example.com
    
-   # Sertifikaları kopyalama
+   # Copy certificates
    cp /etc/letsencrypt/live/tida.example.com/fullchain.pem nginx/ssl/tida.crt
    cp /etc/letsencrypt/live/tida.example.com/privkey.pem nginx/ssl/tida.key
    ```
 
-   Daha sonra nginx yapılandırmasında SSL bölümünü aktifleştirin.
+   Then activate the SSL section in your nginx configuration.
 
-2. **Güvenli Ortam Değişkenleri**
+2. **Secure Environment Variables**
 
-   `.env` dosyasındaki tüm şifreleri ve SECRET_KEY değerini güncellemeyi unutmayın.
+   Remember to update all passwords and SECRET_KEY values in the `.env` file.
 
-3. **Firewall Yapılandırması**
+3. **Firewall Configuration**
 
    ```bash
-   # UFW örneği (Ubuntu)
+   # UFW example (Ubuntu)
    ufw allow 80/tcp
    ufw allow 443/tcp
    ufw enable
    ```
 
-4. **Düzenli Güncellemeler**
+4. **Regular Updates**
 
-   Docker imajlarını ve sisteminizi düzenli olarak güncelleyin:
+   Update Docker images and your system regularly:
 
    ```bash
-   # Docker imajlarını güncelleme
+   # Update Docker images
    docker-compose down
    docker-compose pull
    docker-compose up -d
    
-   # Sistem güncellemesi
+   # System updates
    apt-get update && apt-get upgrade
    ```
 
-## Bakım ve İzleme
+## Maintenance and Monitoring
 
-- **Log Kayıtları**:
+- **Log Records**:
   ```bash
   docker-compose logs -f [service_name]
   ```
 
-- **Veritabanı Yedekleme**:
+- **Database Backup**:
   ```bash
   docker-compose exec db pg_dump -U postgres tida > backup_$(date +%Y-%m-%d).sql
   ```
 
-- **Yeniden Başlatma**:
+- **Restart Services**:
   ```bash
   docker-compose restart [service_name]
   ```
 
-## Sorun Giderme
+## Troubleshooting
 
-- **500 Internal Server Error**: Log dosyalarını kontrol edin ve Django DEBUG modunu geçici olarak aktifleştirin
-- **Nginx 502 Bad Gateway**: Backend servisinin çalıştığından ve erişilebilir olduğundan emin olun
-- **Statik Dosya Sorunları**: Django'nun collectstatic komutunu çalıştırın:
+- **500 Internal Server Error**: Check log files and temporarily enable Django DEBUG mode
+- **Nginx 502 Bad Gateway**: Ensure the backend service is running and accessible
+- **Static File Issues**: Run Django's collectstatic command:
   ```bash
   docker-compose exec backend python manage.py collectstatic --noinput
+  ```
+
+## Common Docker Commands
+
+- **View running containers**:
+  ```bash
+  docker ps
+  ```
+
+- **View container logs**:
+  ```bash
+  docker logs [container_id]
+  ```
+
+- **Access container shell**:
+  ```bash
+  docker exec -it [container_id] bash
+  ```
+
+- **Rebuild specific service**:
+  ```bash
+  docker-compose build [service_name]
+  docker-compose up -d [service_name]
   ```
