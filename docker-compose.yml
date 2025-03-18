@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./tida-backend
+      dockerfile: Dockerfile
+    restart: on-failure
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    expose:
+      - 8000
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./.env
+
+  frontend:
+    build:
+      context: ./tida-frontend
+      dockerfile: Dockerfile
+    restart: on-failure
+    volumes:
+      - frontend_build:/app/build
+      - frontend_static:/app/build/static
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - static_volume:/var/www/static
+      - media_volume:/var/www/media 
+      - frontend_build:/var/www/frontend
+      - frontend_static:/var/www/frontend/static
+    depends_on:
+      - backend
+      - frontend
+    restart: always
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+  frontend_build:
+  frontend_static:
